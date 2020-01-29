@@ -5,7 +5,7 @@ using System.Text;
 using ILGPU.Algorithms;
 using ILGPU.Algorithms.Random;
 
-namespace CUDAtrace4.Models
+namespace CUDAtrace.Models
 {
     public static class Extensions
     {

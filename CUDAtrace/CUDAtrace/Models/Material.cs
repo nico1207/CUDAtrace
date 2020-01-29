@@ -6,7 +6,7 @@ using ILGPU;
 using ILGPU.Algorithms;
 using ILGPU.Algorithms.Random;
 
-namespace CUDAtrace4.Models
+namespace CUDAtrace.Models
 {
     public struct Material
     {
@@ -101,7 +101,7 @@ namespace CUDAtrace4.Models
             
             if (diffuseDepth <= 0) return new Vector3();
             Vector3 lightAccumulator = new Vector3();
-            int samples = 16;
+            int samples = 4;
             for (int i = 0; i < samples; i++)
             {
                 float azimuthal = random.NextFloat() * XMath.PI * 2f;

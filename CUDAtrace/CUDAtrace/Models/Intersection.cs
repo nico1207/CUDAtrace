@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Numerics;
 using System.Text;
 
-namespace CUDAtrace4.Models
+namespace CUDAtrace.Models
 {
     public struct Intersection
     {

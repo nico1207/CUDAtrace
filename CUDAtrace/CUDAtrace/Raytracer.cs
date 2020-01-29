@@ -2,12 +2,12 @@
 using System.Collections.Generic;
 using System.Numerics;
 using System.Text;
-using CUDAtrace4.Models;
+using CUDAtrace.Models;
 using ILGPU;
 using ILGPU.Algorithms;
 using ILGPU.Algorithms.Random;
 
-namespace CUDAtrace4
+namespace CUDAtrace
 {
     public class Raytracer
     {

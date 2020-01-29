@@ -4,40 +4,29 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Numerics;
-using System.Runtime.CompilerServices;
-using System.Text;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Automation;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
-using CUDAtrace4.Models;
+using CUDAtrace.Models;
 using ILGPU;
-using ILGPU.Algorithms;
-using ILGPU.Algorithms.Random;
 using ILGPU.Runtime;
 using ILGPU.Runtime.CPU;
 using ILGPU.Runtime.Cuda;
 using ILGPU.Runtime.OpenCL;
 using Microsoft.Win32;
-using Geometry = CUDAtrace4.Models.Geometry;
-using Index = ILGPU.Index;
+using Geometry = CUDAtrace.Models.Geometry;
 
-namespace CUDAtrace4
+namespace CUDAtrace
 {
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
     public partial class MainWindow : Window
     {
-        public const int WIDTH = 1920;
-        public const int HEIGHT = 1080;
+        public const int WIDTH = 3840;
+        public const int HEIGHT = 2160;
 
         private Context context;
         private Accelerator accelerator;
@@ -45,6 +34,8 @@ namespace CUDAtrace4
         private int passes = 0;
         private int updateTimer = 5;
         private DateTime renderStartTime;
+        private Task renderTask;
+        private bool rendering = false;
 
         public MainWindow()
         {
@@ -59,23 +50,41 @@ namespace CUDAtrace4
 
         private void Button_Click(object sender, RoutedEventArgs e)
         {
-            renderStartTime = DateTime.Now;
-            int device = deviceComboBox.SelectedIndex;
-            Task.Run(() =>
+            if (startRenderButton.Content.ToString() == "Start Rendering")
             {
-                context = new Context();
-                context.EnableAlgorithms();
-                accelerator = device switch
+                denoiseButton.IsEnabled = false;
+                renderStartTime = DateTime.Now;
+                int device = deviceComboBox.SelectedIndex;
+                renderTask = Task.Run(() =>
                 {
-                    0 => new CudaAccelerator(context),
-                    1 => new CPUAccelerator(context),
-                    2 => new CLAccelerator(context, CLAccelerator.AllCLAccelerators[0]),
-                    _ => accelerator
-                };
+                    context = new Context();
+                    context.EnableAlgorithms();
+                    accelerator = device switch
+                    {
+                        0 => new CudaAccelerator(context),
+                        1 => new CPUAccelerator(context),
+                        2 => new CLAccelerator(context, CLAccelerator.AllCLAccelerators[0]),
+                        _ => accelerator
+                    };
 
-                while (true)
-                    Render();
-            });
+                    Dispatcher.Invoke(() => { startRenderButton.Content = "Stop Rendering"; });
+
+                    rendering = true;
+                    while (rendering)
+                        Render();
+
+                    accelerator.Dispose();
+                    context.Dispose();
+
+                    Dispatcher.Invoke(UpdateBitmap);
+                });
+            }
+            else
+            {
+                denoiseButton.IsEnabled = true;
+                rendering = false;
+                startRenderButton.Content = "Start Rendering";
+            }
         }
 
         private void UpdateBitmap()
@@ -131,7 +140,7 @@ namespace CUDAtrace4
         {
             Vector3[] output = new Vector3[WIDTH * HEIGHT];
 
-            var myKernel = accelerator.LoadAutoGroupedStreamKernel<Index2, ArrayView2D<Vector3>, Scene, ArrayView<Geometry>, ArrayView<Light>, int>(Raytracer.Kernel);
+            var myKernel = accelerator.LoadAutoGroupedStreamKernel<Index2, ArrayView2D<Vector3>, Scene, ArrayView<Models.Geometry>, ArrayView<Light>, int>(Raytracer.Kernel);
 
             using (var gpuBuffer = accelerator.Allocate<Vector3>(new Index2(WIDTH, HEIGHT)))
             {
@@ -140,9 +149,9 @@ namespace CUDAtrace4
                 Material whiteMaterial = new Material().Create().SetDiffuse(new Vector3(1f, 1f, 1f), 1f);
                 Material redMaterial = new Material().Create().SetDiffuse(new Vector3(1f, 0.2f, 0.2f), 1f);
                 Material greenMaterial = new Material().Create().SetDiffuse(new Vector3(0.2f, 1f, 0.2f), 1f);
-                Geometry[] sceneGeometry = {
+                Models.Geometry[] sceneGeometry = {
                     Geometry.CreateSphere(new Vector3(0f, -20f, -10f), 10f, whiteMaterial),
-                    Geometry.CreateCylinder(new Vector3(0f, 0f, 0f), new Vector3(1f, 0.2f, -0.2f), 2.5f, 100f, whiteMaterial), 
+                    //Geometry.CreateCylinder(new Vector3(0f, 0f, 0f), new Vector3(1f, 0.2f, -0.2f), 2.5f, 100f, whiteMaterial), 
                     Geometry.CreatePlane(new Vector3(0f, -30f, 0f), new Vector3(0f, 1f, 0f), whiteMaterial),
                     Geometry.CreatePlane(new Vector3(0f, 30f, 0f), new Vector3(0f, -1f, 0f), whiteMaterial),
                     Geometry.CreatePlane(new Vector3(-20f, 0f, 0f), new Vector3(1f, 0f, 0f), redMaterial),
@@ -192,6 +201,46 @@ namespace CUDAtrace4
                 BitmapEncoder encoder = new PngBitmapEncoder();
                 encoder.Frames.Add(BitmapFrame.Create((BitmapSource)outputImage.Source));
                 encoder.Save(stream);
+            }
+        }
+
+        private void DenoiseButton_Click(object sender, RoutedEventArgs e)
+        {
+            unsafe
+            {
+                denoiseProgressBar.Visibility = Visibility.Visible;
+
+                IProgress<double> progress = new Progress<double>(d => { denoiseProgressBar.Value = d; });
+                Task.Run(() =>
+                {
+                    IntPtr device = Denoiser.CreateDevice(OIDNDeviceType.OIDN_DEVICE_TYPE_CPU);
+                    Denoiser.Commit(device);
+
+                    IntPtr filter = Denoiser.CreateFilter(device, "RT");
+                    fixed (void* colBuffer = colorBuffer)
+                    {
+                        IntPtr bufferPtr = new IntPtr(colBuffer);
+                        Denoiser.SetFilterImage(filter, "color", bufferPtr, OIDNFormat.OIDN_FORMAT_FLOAT3, WIDTH, HEIGHT, 0, 0, 0);
+                        Denoiser.SetFilterImage(filter, "output", bufferPtr, OIDNFormat.OIDN_FORMAT_FLOAT3, WIDTH, HEIGHT, 0, 0, 0);
+                        Denoiser.SetFilterBoolean(filter, "hdr", true);
+                        Denoiser.SetFilterProgressMonitorFunction(filter, (ptr, d) =>
+                        {
+                            progress.Report(d);
+                            return true;
+                        }, IntPtr.Zero);
+                        Denoiser.CommitFilter(filter);
+                        Denoiser.ExecuteFilter(filter);
+
+                        Denoiser.ReleaseFilter(filter);
+                        Denoiser.ReleaseDevice(device);
+                    }
+
+                    Dispatcher?.Invoke(() =>
+                    {
+                        UpdateBitmap();
+                        denoiseProgressBar.Visibility = Visibility.Collapsed;
+                    });
+                });
             }
         }
     }

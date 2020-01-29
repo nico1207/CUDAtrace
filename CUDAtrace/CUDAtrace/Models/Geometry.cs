@@ -4,7 +4,7 @@ using System.Numerics;
 using System.Text;
 using ILGPU.Algorithms;
 
-namespace CUDAtrace4.Models
+namespace CUDAtrace.Models
 {
     public struct Geometry
     {
