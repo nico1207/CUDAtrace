@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
@@ -25,8 +26,8 @@ namespace CUDAtrace
     /// </summary>
     public partial class MainWindow : Window
     {
-        public const int WIDTH = 3840;
-        public const int HEIGHT = 2160;
+        public int RenderWidth = 3840;
+        public int RenderHeight = 2160;
 
         private Context context;
         private Accelerator accelerator;
@@ -40,12 +41,21 @@ namespace CUDAtrace
         public MainWindow()
         {
             InitializeComponent();
-            //outputImage.Width = WIDTH;
-            //outputImage.Height = HEIGHT;
+            //outputImage.Width = RenderWidth;
+            //outputImage.Height = RenderHeight;
             RenderOptions.SetBitmapScalingMode(outputImage, BitmapScalingMode.HighQuality);
 
             //GPUlabel.Content = $"GPU: {accelerator.Name}";
-            colorBuffer = new Vector3[WIDTH * HEIGHT];
+            SetResolution();
+        }
+
+        private void SetResolution()
+        {
+            RenderWidth = int.Parse(widthTextbox.Text);
+            RenderHeight = int.Parse(heightTextbox.Text);
+            colorBuffer = new Vector3[RenderWidth * RenderHeight];
+            passes = 0;
+            UpdateBitmap();
         }
 
         private void Button_Click(object sender, RoutedEventArgs e)
@@ -89,18 +99,18 @@ namespace CUDAtrace
 
         private void UpdateBitmap()
         {
-            var bitmap = new WriteableBitmap(WIDTH, HEIGHT, 1.0, 1.0, PixelFormats.Rgb24, null);
+            var bitmap = new WriteableBitmap(RenderWidth, RenderHeight, 1.0, 1.0, PixelFormats.Rgb24, null);
             outputImage.Source = bitmap;
 
             bitmap.Lock();
             IntPtr buffer = bitmap.BackBuffer;
             unsafe
             {
-                for (int y = 0; y < HEIGHT; y++)
+                for (int y = 0; y < RenderHeight; y++)
                 {
-                    for (int x = 0; x < WIDTH; x++)
+                    for (int x = 0; x < RenderWidth; x++)
                     {
-                        Vector3 col = colorBuffer[x + WIDTH * y] / passes;
+                        Vector3 col = colorBuffer[x + RenderWidth * y] / passes;
                         col = Aces(col, 2f);
                         //byte* colPtr = (byte*)&col;
                         *(byte*)(buffer) = (byte)(col.X * 255);
@@ -138,11 +148,11 @@ namespace CUDAtrace
 
         private void Render()
         {
-            Vector3[] output = new Vector3[WIDTH * HEIGHT];
+            Vector3[] output = new Vector3[RenderWidth * RenderHeight];
 
             var myKernel = accelerator.LoadAutoGroupedStreamKernel<Index2, ArrayView2D<Vector3>, Scene, ArrayView<Models.Geometry>, ArrayView<Light>, int>(Raytracer.Kernel);
 
-            using (var gpuBuffer = accelerator.Allocate<Vector3>(new Index2(WIDTH, HEIGHT)))
+            using (var gpuBuffer = accelerator.Allocate<Vector3>(new Index2(RenderWidth, RenderHeight)))
             {
                 System.Random random = new System.Random();
                 Material lightMaterial = new Material().Create().SetEmission(new Vector3(1f, 1f, 1f), 40f);
@@ -151,7 +161,7 @@ namespace CUDAtrace
                 Material greenMaterial = new Material().Create().SetDiffuse(new Vector3(0.2f, 1f, 0.2f), 1f);
                 Models.Geometry[] sceneGeometry = {
                     Geometry.CreateSphere(new Vector3(0f, -20f, -10f), 10f, whiteMaterial),
-                    //Geometry.CreateCylinder(new Vector3(0f, 0f, 0f), new Vector3(1f, 0.2f, -0.2f), 2.5f, 100f, whiteMaterial), 
+                    Geometry.CreateCylinder(new Vector3(0f, 0f, 0f), new Vector3(1f, 0.2f, -0.2f), 2.5f, 100f, whiteMaterial), 
                     Geometry.CreatePlane(new Vector3(0f, -30f, 0f), new Vector3(0f, 1f, 0f), whiteMaterial),
                     Geometry.CreatePlane(new Vector3(0f, 30f, 0f), new Vector3(0f, -1f, 0f), whiteMaterial),
                     Geometry.CreatePlane(new Vector3(-20f, 0f, 0f), new Vector3(1f, 0f, 0f), redMaterial),
@@ -168,18 +178,18 @@ namespace CUDAtrace
                 geometryBuffer.CopyFrom(accelerator.DefaultStream, sceneGeometry, 0, 0, sceneGeometry.Length);
                 using var lightBuffer = accelerator.Allocate<Light>(sceneLights.Length);
                 lightBuffer.CopyFrom(accelerator.DefaultStream, sceneLights, 0, 0, sceneLights.Length);
-                gpuBuffer.CopyFrom(accelerator.DefaultStream, colorBuffer, 0, Index2.Zero, WIDTH * HEIGHT);
+                gpuBuffer.CopyFrom(accelerator.DefaultStream, colorBuffer, 0, Index2.Zero, RenderWidth * RenderHeight);
                 accelerator.DefaultStream.Synchronize();
 
                 Scene scene = new Scene
                 {
-                    Camera = new Camera(new Vector3(0f, 0f, -100f), Vector3.Zero, 36f, WIDTH, HEIGHT)
+                    Camera = new Camera(new Vector3(0f, 0f, -100f), Vector3.Zero, 36f, RenderWidth, RenderHeight)
                 };
 
                 myKernel(gpuBuffer.Extent, gpuBuffer.View, scene, geometryBuffer.View, lightBuffer.View, new System.Random().Next());
                 accelerator.Synchronize();
 
-                gpuBuffer.CopyTo(colorBuffer, Index2.Zero, 0, new Index2(WIDTH, HEIGHT));
+                gpuBuffer.CopyTo(colorBuffer, Index2.Zero, 0, new Index2(RenderWidth, RenderHeight));
                 passes += 1;
 
                 Dispatcher?.InvokeAsync(() => { statusLabel.Content = $"Passes: {passes}    Elapsed: {(DateTime.Now - renderStartTime).ToString(@"hh\:mm\:ss")}    Passes/s: {passes / (float)(DateTime.Now - renderStartTime).TotalSeconds}"; });
@@ -213,15 +223,15 @@ namespace CUDAtrace
                 IProgress<double> progress = new Progress<double>(d => { denoiseProgressBar.Value = d; });
                 Task.Run(() =>
                 {
-                    IntPtr device = Denoiser.CreateDevice(OIDNDeviceType.OIDN_DEVICE_TYPE_CPU);
+                    IntPtr device = Denoiser.CreateDevice(OIDNDeviceType.OIDN_DEVICE_TYPE_DEFAULT);
                     Denoiser.Commit(device);
 
                     IntPtr filter = Denoiser.CreateFilter(device, "RT");
                     fixed (void* colBuffer = colorBuffer)
                     {
                         IntPtr bufferPtr = new IntPtr(colBuffer);
-                        Denoiser.SetFilterImage(filter, "color", bufferPtr, OIDNFormat.OIDN_FORMAT_FLOAT3, WIDTH, HEIGHT, 0, 0, 0);
-                        Denoiser.SetFilterImage(filter, "output", bufferPtr, OIDNFormat.OIDN_FORMAT_FLOAT3, WIDTH, HEIGHT, 0, 0, 0);
+                        Denoiser.SetFilterImage(filter, "color", bufferPtr, OIDNFormat.OIDN_FORMAT_FLOAT3, (ulong)RenderWidth, (ulong)RenderHeight, 0, 0, 0);
+                        Denoiser.SetFilterImage(filter, "output", bufferPtr, OIDNFormat.OIDN_FORMAT_FLOAT3, (ulong)RenderWidth, (ulong)RenderHeight, 0, 0, 0);
                         Denoiser.SetFilterBoolean(filter, "hdr", true);
                         Denoiser.SetFilterProgressMonitorFunction(filter, (ptr, d) =>
                         {
@@ -242,6 +252,11 @@ namespace CUDAtrace
                     });
                 });
             }
+        }
+
+        private void Button_Click_1(object sender, RoutedEventArgs e)
+        {
+            SetResolution();
         }
     }
 }

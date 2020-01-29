@@ -5,12 +5,16 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:CUDAtrace"
         mc:Ignorable="d"
-        Title="CUDAtrace" Height="800" Width="1400" SizeToContent="WidthAndHeight" Closed="MainWindow_OnClosed">
+        Title="CUDAtrace" Height="800" Width="1400" Closed="MainWindow_OnClosed">
     <Grid>
-        <StackPanel>
-            <Image x:Name="outputImage" Width="1280" Height="720" Margin="10"></Image>
-            <StackPanel Orientation="Horizontal" Margin="10, 0, 10, 10">
-                <Label Content="Device:"></Label>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"></RowDefinition>
+                <RowDefinition Height="30"></RowDefinition>
+            </Grid.RowDefinitions>
+            <Image Grid.Row="0" x:Name="outputImage" Margin="10"/>
+            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="10, 0, 10, 10">
+                <Label Content="Device:" Padding="5, 0, 5, 0" VerticalContentAlignment="Center"></Label>
                 <ComboBox x:Name="deviceComboBox" SelectedIndex="0" VerticalContentAlignment="Center">
                     <ComboBox.Items>
                         <ComboBoxItem Content="CUDA"></ComboBoxItem>
@@ -22,8 +26,13 @@
                 <Button x:Name="denoiseButton" Content="Denoise" Padding="10, 0, 10, 0" Click="DenoiseButton_Click" Margin="10, 0, 0, 0"></Button>
                 <ProgressBar x:Name="denoiseProgressBar" Width="100" Margin="10, 0, 0, 0" Maximum="1" Visibility="Collapsed"/>
                 <Button Content="Save Image" Padding="10, 0, 10, 0" Click="SaveButton_Click" Margin="10, 0, 0, 0"></Button>
-                <Label x:Name="statusLabel" Content="Passes: 0    Elapsed: 0s"></Label>
+                <Label Content="Width:" Margin="20,0,0,0" Padding="5, 0, 5, 0" VerticalContentAlignment="Center"></Label>
+                <TextBox x:Name="widthTextbox" Width="50" Text="1920" VerticalContentAlignment="Center"></TextBox>
+                <Label Content="Height:" Padding="5, 0, 5, 0" VerticalContentAlignment="Center"></Label>
+                <TextBox x:Name="heightTextbox" Width="50" Text="1080" VerticalContentAlignment="Center"></TextBox>
+                <Button Width="50" Content="Apply" Margin="10,0,20,0" Click="Button_Click_1"></Button>
+                <Label x:Name="statusLabel" Content="Passes: 0    Elapsed: 0s" Padding="5, 0, 5, 0" VerticalContentAlignment="Center"></Label>
             </StackPanel>
-        </StackPanel>
+        </Grid>
     </Grid>
 </Window>
