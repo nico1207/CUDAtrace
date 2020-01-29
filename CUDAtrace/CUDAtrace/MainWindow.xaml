@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:CUDAtrace"
         mc:Ignorable="d"
-        Title="CUDAtrace" Height="800" Width="1400" Closed="MainWindow_OnClosed">
+        Title="CUDAtrace" Height="750" Width="1200" Closed="MainWindow_OnClosed">
     <Grid>
         <Grid>
             <Grid.RowDefinitions>
