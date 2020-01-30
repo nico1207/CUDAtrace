@@ -37,6 +37,9 @@ namespace CUDAtrace
         private DateTime renderStartTime;
         private Task renderTask;
         private bool rendering = false;
+        private Geometry[] sceneGeometry;
+        private Light[] sceneLights;
+        private Scene scene;
 
         public MainWindow()
         {
@@ -47,6 +50,7 @@ namespace CUDAtrace
 
             //GPUlabel.Content = $"GPU: {accelerator.Name}";
             SetResolution();
+            LoadScene(Path.Combine(Environment.CurrentDirectory, "Scenes", "TestScene.json"));
         }
 
         private void SetResolution()
@@ -154,26 +158,6 @@ namespace CUDAtrace
 
             using (var gpuBuffer = accelerator.Allocate<Vector3>(new Index2(RenderWidth, RenderHeight)))
             {
-                System.Random random = new System.Random();
-                Material lightMaterial = new Material().Create().SetEmission(new Vector3(1f, 1f, 1f), 40f);
-                Material whiteMaterial = new Material().Create().SetDiffuse(new Vector3(1f, 1f, 1f), 1f);
-                Material redMaterial = new Material().Create().SetDiffuse(new Vector3(1f, 0.2f, 0.2f), 1f);
-                Material greenMaterial = new Material().Create().SetDiffuse(new Vector3(0.2f, 1f, 0.2f), 1f);
-                Models.Geometry[] sceneGeometry = {
-                    Geometry.CreateSphere(new Vector3(0f, -20f, -10f), 10f, whiteMaterial),
-                    Geometry.CreateCylinder(new Vector3(0f, 0f, 0f), new Vector3(1f, 0.2f, -0.2f), 2.5f, 100f, whiteMaterial), 
-                    Geometry.CreatePlane(new Vector3(0f, -30f, 0f), new Vector3(0f, 1f, 0f), whiteMaterial),
-                    Geometry.CreatePlane(new Vector3(0f, 30f, 0f), new Vector3(0f, -1f, 0f), whiteMaterial),
-                    Geometry.CreatePlane(new Vector3(-20f, 0f, 0f), new Vector3(1f, 0f, 0f), redMaterial),
-                    Geometry.CreatePlane(new Vector3(20f, 0f, 0f), new Vector3(-1f, 0f, 0f), greenMaterial),
-                    Geometry.CreatePlane(new Vector3(0f, 0f, 20f), new Vector3(0f, 0f, -1f), whiteMaterial),
-                    //Geometry.CreateDisc(new Vector3(0f, 29.9f, 0f), new Vector3(0f, -1f, 0f), 7.5f, lightMaterial),
-                };
-                Light[] sceneLights =
-                {
-                    Light.CreateDisc(new Vector3(0f, 29.9f, 0f), new Vector3(0f, -1f, 0f), 7.5f, Vector3.One, 30f),
-                };
-
                 using var geometryBuffer = accelerator.Allocate<Geometry>(sceneGeometry.Length);
                 geometryBuffer.CopyFrom(accelerator.DefaultStream, sceneGeometry, 0, 0, sceneGeometry.Length);
                 using var lightBuffer = accelerator.Allocate<Light>(sceneLights.Length);
@@ -181,12 +165,9 @@ namespace CUDAtrace
                 gpuBuffer.CopyFrom(accelerator.DefaultStream, colorBuffer, 0, Index2.Zero, RenderWidth * RenderHeight);
                 accelerator.DefaultStream.Synchronize();
 
-                Scene scene = new Scene
-                {
-                    Camera = new Camera(new Vector3(0f, 0f, -100f), Vector3.Zero, 36f, RenderWidth, RenderHeight)
-                };
+                scene.Camera = new Camera(scene.Camera.Position, scene.Camera.LookAt, scene.Camera.FocalLength, RenderWidth, RenderHeight);
 
-                myKernel(gpuBuffer.Extent, gpuBuffer.View, scene, geometryBuffer.View, lightBuffer.View, new System.Random().Next());
+                myKernel(gpuBuffer.Extent, gpuBuffer.View, scene, geometryBuffer.View, lightBuffer.View, new Random().Next());
                 accelerator.Synchronize();
 
                 gpuBuffer.CopyTo(colorBuffer, Index2.Zero, 0, new Index2(RenderWidth, RenderHeight));
@@ -201,8 +182,10 @@ namespace CUDAtrace
 
         private void SaveButton_Click(object sender, RoutedEventArgs e)
         {
-            SaveFileDialog dialog = new SaveFileDialog();
-            dialog.Filter = "PNG File|*.png";
+            SaveFileDialog dialog = new SaveFileDialog
+            {
+                Filter = "PNG File|*.png"
+            };
             bool? result = dialog.ShowDialog();
 
             if (result.HasValue && result.Value)
@@ -256,6 +239,66 @@ namespace CUDAtrace
 
         private void Button_Click_1(object sender, RoutedEventArgs e)
         {
+            SetResolution();
+        }
+
+        private void OpenSceneButton_Click(object sender, RoutedEventArgs e)
+        {
+            OpenFileDialog dialog = new OpenFileDialog {Filter = "Json Scene|*.json", InitialDirectory = Path.Combine(Environment.CurrentDirectory, "Scenes")};
+            bool? result = dialog.ShowDialog();
+            if (result.HasValue && result.Value)
+            {
+                LoadScene(dialog.FileName);
+            }
+        }
+
+        private void LoadScene(string filename)
+        {
+            JsonScene jsonScene = JsonScene.FromFile(filename);
+            sceneNameLabel.Content = $"Scene: {jsonScene.Name}";
+
+            Dictionary<string, Material> materials = jsonScene.Materials.ToDictionary(material => material.ID, material =>
+            {
+                Material mat = new Material().Create();
+                if (material.Diffuse != null)
+                    mat.SetDiffuse(material.Diffuse.Color, material.Diffuse.Albedo);
+                if (material.Emission != null)
+                    mat.SetEmission(material.Emission.Color, material.Emission.Brightness);
+                return mat;
+            });
+            sceneGeometry = jsonScene.Geometry.Select(j =>
+            {
+                switch (j.Type)
+                {
+                    case "sphere": return Geometry.CreateSphere(j.Position, j.Radius, materials[j.Material]);
+                    case "disc": return Geometry.CreateDisc(j.Position, j.Normal, j.Radius, materials[j.Material]);
+                    case "plane": return Geometry.CreatePlane(j.Position, j.Normal, materials[j.Material]);
+                    case "cylinder": return Geometry.CreateCylinder(j.Position, j.Normal, j.Radius, j.Height, materials[j.Material]);
+                    default: return new Geometry();
+                }
+            }).ToArray();
+            if (jsonScene.Lights.Length > 0)
+            {
+                sceneLights = jsonScene.Lights.Select(j =>
+                {
+                    switch (j.Type)
+                    {
+                        case "disc": return Light.CreateDisc(j.Position, j.Normal, j.Radius, j.Color, j.Brightness);
+                        default: return new Light();
+                    }
+                }).ToArray();
+            }
+            else
+            {
+                sceneLights = new Light[] { new Light() };
+            }
+            
+            scene = new Scene()
+            {
+                Camera = new Camera(jsonScene.Camera.Position, jsonScene.Camera.LookAt, jsonScene.Camera.FocalLength, RenderWidth, RenderHeight),
+                SkylightColor = jsonScene.Skylight.Color,
+                SkylightBrightness = jsonScene.Skylight.Brightness
+            };
             SetResolution();
         }
     }

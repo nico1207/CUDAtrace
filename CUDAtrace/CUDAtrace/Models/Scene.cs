@@ -8,9 +8,11 @@ namespace CUDAtrace.Models
 {
     public struct Scene
     {
-        public Camera Camera;
-        public ArrayView<Geometry> SceneGeometry;
+        public Camera Camera { get; set; }
+        public ArrayView<Geometry> SceneGeometry { get; set; }
         public ArrayView<Light> SceneLights { get; set; }
+        public Vector3 SkylightColor { get; set; }
+        public float SkylightBrightness { get; set; }
 
         public Intersection TraceScene(Ray ray)
         {

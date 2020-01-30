@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Numerics;
 using System.Text;
+using System.Windows.Threading;
 using ILGPU;
 using ILGPU.Algorithms;
 using ILGPU.Algorithms.Random;
@@ -112,7 +113,12 @@ namespace CUDAtrace.Models
                     dir *= -1;
                 Ray ray = new Ray(position + dir * 0.0001f, dir);
                 Intersection intersection = scene.TraceScene(ray);
-                if (!intersection.Hit || intersection.HitLight) continue;
+                if (!intersection.Hit && !intersection.HitLight)
+                {
+                    lightAccumulator += Vector3.Multiply(scene.SkylightColor * scene.SkylightBrightness * Vector3.Dot(dir, normal), DiffuseColor) * Diffuse;
+                    continue;
+                }
+                else if (!intersection.Hit || intersection.HitLight) continue;
                 Material hitMaterial = intersection.HitObject.Material;
                 Vector3 lightC = hitMaterial.GetShaded2(random, scene, intersection.HitPosition, dir, intersection.HitNormal, diffuseDepth - 1, reflectionDepth - 1, refractionDepth);
                 lightC *= Vector3.Dot(dir, normal);
@@ -154,7 +160,12 @@ namespace CUDAtrace.Models
                     dir *= -1;
                 Ray ray = new Ray(position + dir * 0.0001f, dir);
                 Intersection intersection = scene.TraceScene(ray);
-                if (!intersection.Hit || intersection.HitLight) continue;
+                if (!intersection.Hit && !intersection.HitLight)
+                {
+                    lightAccumulator += Vector3.Multiply(scene.SkylightColor * scene.SkylightBrightness * Vector3.Dot(dir, normal), DiffuseColor) * Diffuse;
+                    continue;
+                }
+                else if (!intersection.Hit || intersection.HitLight) continue;
                 Material hitMaterial = intersection.HitObject.Material;
                 Vector3 lightC = hitMaterial.GetShaded3(random, scene, intersection.HitPosition, dir, intersection.HitNormal, diffuseDepth - 1, reflectionDepth - 1, refractionDepth);
                 lightC *= Vector3.Dot(dir, normal);

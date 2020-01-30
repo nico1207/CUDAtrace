@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Numerics;
 using System.Text;
 
-namespace CUDAtrace.Models
+namespace CUDAtrace
 {
     public static class Helper
     {

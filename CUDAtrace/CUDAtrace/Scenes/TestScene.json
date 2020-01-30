@@ -1,0 +1,45 @@
+{
+  "name":  "Test Scene", 
+  "camera": {
+    "position": [ 0.0, 0.0, -200.0 ],
+    "lookat": [ 0.0, 0.0, 0.0 ],
+    "focallength": 36.0
+  },
+  "skylight": {
+    "color": [ 1.0, 0.0, 0.0 ],
+    "brightness": 0.0
+  },
+  "materials": [
+    {
+      "id": "white",
+      "diffuse": {
+        "color": [ 1.0, 1.0, 1.0 ],
+        "albedo": 1.0
+      }
+    }
+  ],
+  "geometry": [
+    {
+      "type": "sphere",
+      "material": "white",
+      "position": [ 0.0, -20.0, -10.0 ],
+      "radius": 10.0
+    },
+    {
+      "type": "plane",
+      "material": "white",
+      "position": [ 0.0, -30.0, 0.0 ],
+      "normal": [ 0.0, 1.0, 0.0 ]
+    }
+  ],
+  "lights": [
+    {
+      "type": "disc",
+      "position": [ 20.0, 0.0, 10.0 ],
+      "normal": [ -1.0, -1.0, -1.0 ],
+      "radius": 7.5,
+      "color": [ 1.0, 1.0, 1.0 ],
+      "brightness": 30.0
+    }
+  ]
+}
