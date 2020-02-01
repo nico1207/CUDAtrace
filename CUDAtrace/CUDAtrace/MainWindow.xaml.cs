@@ -40,10 +40,14 @@ namespace CUDAtrace
         private Geometry[] sceneGeometry;
         private Light[] sceneLights;
         private Scene scene;
+        private EditorViewportManager editorViewport;
+        private ViewportMode currentViewportMode;
 
         public MainWindow()
         {
             InitializeComponent();
+            editorViewport = new EditorViewportManager(openTkControl);
+
             //outputImage.Width = RenderWidth;
             //outputImage.Height = RenderHeight;
             RenderOptions.SetBitmapScalingMode(outputImage, BitmapScalingMode.HighQuality);
@@ -51,6 +55,8 @@ namespace CUDAtrace
             //GPUlabel.Content = $"GPU: {accelerator.Name}";
             SetResolution();
             LoadScene(Path.Combine(Environment.CurrentDirectory, "Scenes", "TestScene.json"));
+
+            SetEditorViewportMode();
         }
 
         private void SetResolution()
@@ -67,6 +73,7 @@ namespace CUDAtrace
             if (startRenderButton.Content.ToString() == "Start Rendering")
             {
                 denoiseButton.IsEnabled = false;
+                SetRenderingViewportMode();
                 renderStartTime = DateTime.Now;
                 int device = deviceComboBox.SelectedIndex;
                 renderTask = Task.Run(() =>
@@ -257,6 +264,8 @@ namespace CUDAtrace
             JsonScene jsonScene = JsonScene.FromFile(filename);
             sceneNameLabel.Content = $"Scene: {jsonScene.Name}";
 
+            editorViewport.LoadScene(jsonScene);
+
             Dictionary<string, Material> materials = jsonScene.Materials.ToDictionary(material => material.ID, material =>
             {
                 Material mat = new Material().Create();
@@ -264,6 +273,8 @@ namespace CUDAtrace
                     mat.SetDiffuse(material.Diffuse.Color, material.Diffuse.Albedo);
                 if (material.Emission != null)
                     mat.SetEmission(material.Emission.Color, material.Emission.Brightness);
+                if (material.Reflection != null)
+                    mat.SetReflection(material.Reflection.Color, material.Reflection.Reflectivity, material.Reflection.IOR);
                 return mat;
             });
             sceneGeometry = jsonScene.Geometry.Select(j =>
@@ -300,6 +311,36 @@ namespace CUDAtrace
                 SkylightBrightness = jsonScene.Skylight.Brightness
             };
             SetResolution();
+        }
+
+        private void SetEditorViewportMode()
+        {
+            currentViewportMode = ViewportMode.Editor;
+            openTkControl.Visibility = Visibility.Visible;
+            outputImage.Visibility = Visibility.Hidden;
+            toggleViewportModeButton.Content = "Render View";
+        }
+
+        private void SetRenderingViewportMode()
+        {
+            currentViewportMode = ViewportMode.Rendering;
+            openTkControl.Visibility = Visibility.Hidden;
+            outputImage.Visibility = Visibility.Visible;
+            toggleViewportModeButton.Content = "Editor View";
+        }
+
+        private enum ViewportMode
+        {
+            Rendering,
+            Editor
+        }
+
+        private void ToggleViewportModeButton_OnClick(object sender, RoutedEventArgs e)
+        {
+            if (currentViewportMode == ViewportMode.Editor)
+                SetRenderingViewportMode();
+            else
+                SetEditorViewportMode();
         }
     }
 }

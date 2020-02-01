@@ -4,8 +4,10 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:CUDAtrace"
+        xmlns:openTkControl="clr-namespace:OpenTkControl;assembly=OpenTkControl"
         mc:Ignorable="d"
-        Title="CUDAtrace" Height="770" Width="1200" Closed="MainWindow_OnClosed">
+        Title="CUDAtrace" Height="962" Width="1500" Closed="MainWindow_OnClosed"
+        ResizeMode="NoResize">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="20"></RowDefinition>
@@ -17,7 +19,8 @@
                 <MenuItem Header="_Open Scene" Click="OpenSceneButton_Click"/>
             </MenuItem>
         </Menu>
-        <Image Grid.Row="1" x:Name="outputImage" Margin="10"/>
+        <Image Grid.Row="1" x:Name="outputImage" Margin="10" Visibility="Hidden"/>
+        <openTkControl:UiOpenTkControl x:Name="openTkControl" Grid.Row="1" Margin="10, 13"/>
         <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="10, 0, 10, 10" HorizontalAlignment="Left">
             <Label x:Name="sceneNameLabel" Content="Scene:" Padding="5, 0, 5, 0" VerticalContentAlignment="Center"></Label>
             <Label Content="Device:" Padding="5, 0, 5, 0" VerticalContentAlignment="Center" Margin="10,0,0,0"></Label>
@@ -32,6 +35,7 @@
             <Button x:Name="denoiseButton" Content="Denoise" Padding="10, 0, 10, 0" Click="DenoiseButton_Click" Margin="10, 0, 0, 0"></Button>
             <ProgressBar x:Name="denoiseProgressBar" Width="100" Margin="10, 0, 0, 0" Maximum="1" Visibility="Collapsed"/>
             <Button Content="Save Image" Padding="10, 0, 10, 0" Click="SaveButton_Click" Margin="10, 0, 0, 0"></Button>
+            <Button x:Name="toggleViewportModeButton" Content="Render View" Padding="10, 0, 10, 0" Click="ToggleViewportModeButton_OnClick" Margin="10, 0, 0, 0"></Button>
         </StackPanel>
         <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="10, 0, 10, 10" HorizontalAlignment="Right">
             <Label Content="Width:" Margin="20,0,0,0" Padding="5, 0, 5, 0" VerticalContentAlignment="Center"></Label>

@@ -38,6 +38,7 @@ namespace CUDAtrace.Models
         public string ID { get; set; }
         public JsonDiffuseSettings Diffuse { get; set; }
         public JsonEmissionSettings Emission { get; set; }
+        public JsonReflectionSettings Reflection { get; set; }
     }
 
     public class JsonDiffuseSettings
@@ -50,6 +51,13 @@ namespace CUDAtrace.Models
     {
         public Vector3 Color { get; set; }
         public float Brightness { get; set; }
+    }
+
+    public class JsonReflectionSettings
+    {
+        public Vector3 Color { get; set; }
+        public float Reflectivity { get; set; }
+        public float IOR { get; set; }
     }
 
     public class JsonGeometry

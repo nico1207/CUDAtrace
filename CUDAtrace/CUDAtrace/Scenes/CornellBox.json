@@ -30,12 +30,20 @@
         "color": [ 0.2, 1.0, 0.2 ],
         "albedo": 1.0
       }
+    },
+    {
+      "id": "sphere",
+      "reflection": {
+        "color": [ 1.0, 1.0, 1.0 ],
+        "reflectivity": 1.0,
+        "ior":  5.0 
+      }
     }
   ],
   "geometry": [
     {
       "type": "sphere",
-      "material": "white",
+      "material": "sphere",
       "position": [ 0.0, -20.0, -10.0 ],
       "radius": 10.0
     },
@@ -73,7 +81,7 @@
   "lights": [
     {
       "type": "disc",
-      "position": [ 0.0, 29.99, 0.0 ],
+      "position": [ 0.0, 29.9, 0.0 ],
       "normal": [ 0.0, -1.0, 0.0 ],
       "radius": 7.5,
       "color": [ 1.0, 1.0, 1.0 ],
