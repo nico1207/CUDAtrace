@@ -78,7 +78,7 @@ namespace CUDAtrace
                 int device = deviceComboBox.SelectedIndex;
                 renderTask = Task.Run(() =>
                 {
-                    context = new Context();
+                    context = new Context(ContextFlags.FastMath | ContextFlags.AggressiveInlining);
                     context.EnableAlgorithms();
                     accelerator = device switch
                     {
@@ -183,7 +183,7 @@ namespace CUDAtrace
                 Dispatcher?.InvokeAsync(() => { statusLabel.Content = $"Passes: {passes}    Elapsed: {(DateTime.Now - renderStartTime).ToString(@"hh\:mm\:ss")}    Passes/s: {passes / (float)(DateTime.Now - renderStartTime).TotalSeconds}"; });
             }
 
-            if ((passes - 1) % 5 == 0)
+            if ((passes - 1) % 50 == 0)
                 Dispatcher?.InvokeAsync(UpdateBitmap);
         }
 

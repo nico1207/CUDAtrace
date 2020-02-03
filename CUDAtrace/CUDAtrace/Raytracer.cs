@@ -28,7 +28,7 @@ namespace CUDAtrace
             Intersection intersection = scene.TraceScene(ray);
             if (intersection.Hit)
             {
-                outputColor = intersection.HitObject.Material.GetShaded(random, scene, intersection.HitPosition, ray.Direction, intersection.HitNormal, 2, 2, 2);
+                outputColor = intersection.HitObject.Material.GetShaded(random, scene, intersection.HitPosition, ray.Direction, intersection.HitNormal);
             }
             else if (intersection.HitLight)
             {
