@@ -90,9 +90,8 @@ namespace CUDAtrace
 
                     Dispatcher.Invoke(() => { startRenderButton.Content = "Stop Rendering"; });
 
-                    rendering = true;
-                    while (rendering)
-                        Render();
+                    rendering = true; 
+                    Render();
 
                     accelerator.Dispose();
                     context.Dispose();
@@ -174,17 +173,26 @@ namespace CUDAtrace
 
                 scene.Camera = new Camera(scene.Camera.Position, scene.Camera.LookAt, scene.Camera.FocalLength, RenderWidth, RenderHeight);
 
-                myKernel(gpuBuffer.Extent, gpuBuffer.View, scene, geometryBuffer.View, lightBuffer.View, new Random().Next());
-                accelerator.Synchronize();
+                while (rendering)
+                {
+                    myKernel(gpuBuffer.Extent, gpuBuffer.View, scene, geometryBuffer.View, lightBuffer.View, new Random().Next());
+                    accelerator.Synchronize();
 
+                    passes += 1;
+                    Dispatcher?.InvokeAsync(() => { statusLabel.Content = $"Passes: {passes}    Elapsed: {(DateTime.Now - renderStartTime).ToString(@"hh\:mm\:ss")}    Passes/s: {passes / (float)(DateTime.Now - renderStartTime).TotalSeconds}"; });
+
+                    if ((passes - 1) % 20 == 0)
+                    {
+                        gpuBuffer.CopyTo(colorBuffer, Index2.Zero, 0, new Index2(RenderWidth, RenderHeight));
+                        Dispatcher?.InvokeAsync(UpdateBitmap);
+                    }
+                } 
+                
                 gpuBuffer.CopyTo(colorBuffer, Index2.Zero, 0, new Index2(RenderWidth, RenderHeight));
-                passes += 1;
-
-                Dispatcher?.InvokeAsync(() => { statusLabel.Content = $"Passes: {passes}    Elapsed: {(DateTime.Now - renderStartTime).ToString(@"hh\:mm\:ss")}    Passes/s: {passes / (float)(DateTime.Now - renderStartTime).TotalSeconds}"; });
+                Dispatcher?.InvokeAsync(UpdateBitmap);
             }
 
-            if ((passes - 1) % 50 == 0)
-                Dispatcher?.InvokeAsync(UpdateBitmap);
+            
         }
 
         private void SaveButton_Click(object sender, RoutedEventArgs e)
