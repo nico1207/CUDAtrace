@@ -20,7 +20,7 @@
     <PackageReference Include="ILGPU" Version="0.7.1" />
     <PackageReference Include="ILGPU.Algorithms" Version="0.7.0" />
     <PackageReference Include="JayFleischer.OpenTkControl" Version="1.0.1" />
-    <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.2" />
     <PackageReference Include="OpenTK" Version="3.1.0" />
   </ItemGroup>
 
